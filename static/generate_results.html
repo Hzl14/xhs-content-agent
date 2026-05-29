@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>草稿预览 · 小红书助手</title>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;background:#f5f5f7;color:#1d1d1f;padding:32px 20px;min-height:100vh}
+    .container{max-width:920px;margin:0 auto}
+    .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;gap:12px;flex-wrap:wrap}
+    h1{font-size:22px;font-weight:700;color:#ff2442}
+    .back{font-size:13px;color:#666;text-decoration:none}.back:hover{color:#ff2442}
+    .summary{background:#fff;border-radius:12px;padding:14px 18px;margin-bottom:18px;font-size:14px;color:#555;box-shadow:0 1px 3px rgba(0,0,0,.05);line-height:1.7}
+    .summary strong{color:#1d1d1f}
+    .download-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+    .note-card{background:#fff;border-radius:12px;margin-bottom:18px;box-shadow:0 1px 5px rgba(0,0,0,.07);overflow:hidden}
+    .note-header{background:#fff0f3;padding:14px 18px;display:flex;align-items:center;gap:10px}
+    .note-index{font-size:12px;font-weight:700;color:#ff2442;background:#ffe0e6;border-radius:6px;padding:3px 8px;flex-shrink:0}
+    .note-topic{font-size:15px;font-weight:700;color:#1d1d1f}
+    .note-body{padding:18px}
+    .field-label{font-size:12px;color:#888;margin-bottom:5px}
+    .field-val{font-size:14px;color:#1d1d1f;line-height:1.7;margin-bottom:13px;word-break:break-word}
+    .field-val.title{font-size:17px;font-weight:700}
+    .field-val.body{white-space:pre-wrap;background:#fafafa;border:1px solid #eee;border-radius:8px;padding:12px}
+    .tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:13px}
+    .tag{background:#fff0f3;color:#ff2442;border-radius:6px;padding:3px 8px;font-size:12px}
+    .score{display:inline-flex;align-items:center;background:#f2f7ff;color:#1d5ca8;border-radius:6px;padding:3px 8px;font-size:12px;margin-bottom:12px}
+    .images-row{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px}
+    .images-row img{width:112px;height:112px;object-fit:cover;border-radius:8px;border:1.5px solid #e0e0e5;background:#f5f5f7}
+    .path-text{font-size:10px;color:#999;max-width:112px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:3px}
+    .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+    .btn{padding:9px 14px;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;min-height:36px}
+    .btn:hover{opacity:.86}.btn:disabled{opacity:.45;cursor:not-allowed}
+    .btn-primary{background:#ff2442;color:#fff}
+    .btn-dark{background:#1d1d1f;color:#fff}
+    .btn-green{background:#2da44e;color:#fff}
+    .btn-outline{background:#fff;color:#1d1d1f;border:1.5px solid #ddd}
+    .revision-panel{background:#fff;border-radius:12px;padding:18px;margin-top:20px;box-shadow:0 1px 5px rgba(0,0,0,.07)}
+    .revision-panel h2{font-size:15px;margin-bottom:10px}
+    textarea{width:100%;min-height:92px;border:1.5px solid #ddd;border-radius:10px;padding:12px;font-size:14px;line-height:1.7;resize:vertical;outline:none;background:#fafafa}
+    textarea:focus{border-color:#ff2442;background:#fff}
+    .empty{text-align:center;padding:60px 20px;color:#777;font-size:15px;background:#fff;border-radius:12px}
+    #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1d1d1f;color:#fff;padding:10px 22px;border-radius:10px;font-size:14px;display:none;z-index:999}
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="topbar">
+    <h1>草稿预览</h1>
+    <a class="back" href="/static/generate.html">重新生成</a>
+  </div>
+
+  <div id="summary"></div>
+  <div id="cards"></div>
+  <div id="revisionPanel"></div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+  function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+  function toast(msg,ms=2600){const t=document.getElementById('toast');t.textContent=msg;t.style.display='block';setTimeout(()=>t.style.display='none',ms)}
+  function getSessionId(){
+    let id = localStorage.getItem('xhs_session_id');
+    if (!id) {
+      id = crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
+      localStorage.setItem('xhs_session_id', id);
+    }
+    return id;
+  }
+  function preparedFromAgent(agentResult){
+    const prepared = [];
+    for (const block of agentResult.results || []) {
+      for (const content of block.contents || []) {
+        prepared.push({topic:block.topic, content, prepare_result:null, critique:block.critique || null});
+      }
+    }
+    return prepared;
+  }
+  function contentText(content){
+    return [content.body, content.cta].filter(Boolean).join('\n\n');
+  }
+  function candidatePayload(item, idx){
+    return {
+      index: idx + 1,
+      topic_title: item.topic?.title,
+      topic_reason: item.topic?.reason,
+      content_title: item.content?.title,
+      content: item.content,
+      critique: item.critique || null,
+      score: item.critique?.total_score || null
+    };
+  }
+
+  const raw = localStorage.getItem('xhs_generate_result');
+  const cardsEl = document.getElementById('cards');
+  const summaryEl = document.getElementById('summary');
+  const revisionEl = document.getElementById('revisionPanel');
+
+  if (!raw) {
+    summaryEl.innerHTML = '';
+    cardsEl.innerHTML = '<div class="empty">没有找到生成结果，请先返回生成页面。</div>';
+  } else {
+    const data = JSON.parse(raw);
+    const agentResult = data.agent_result || {};
+    const preparedResults = (data.prepared_results && data.prepared_results.length)
+      ? data.prepared_results
+      : preparedFromAgent(agentResult);
+    const draft = agentResult.draft_package;
+    const total = preparedResults.length;
+
+    summaryEl.className = 'summary';
+    summaryEl.innerHTML = `
+      共生成 <strong>${total}</strong> 篇候选草稿。
+      ${agentResult.needs_clarification ? `<br />系统提示：${esc(agentResult.clarification_question)}` : ''}
+      ${draft ? `
+        <div class="download-row">
+          <a class="btn btn-outline" href="${esc(draft.markdown_url)}" target="_blank">下载 Markdown</a>
+          <a class="btn btn-outline" href="${esc(draft.json_url)}" target="_blank">查看 JSON</a>
+        </div>
+      ` : ''}
+    `;
+
+    preparedResults.forEach((item, idx) => {
+      const topic = item.topic || {};
+      const content = item.content || {};
+      const prep = item.prepare_result || {};
+      const mcp = prep.mcp_args || {
+        title: content.title,
+        content: contentText(content),
+        tags: content.hashtags || []
+      };
+      const images = prep.image_paths || [];
+      const critique = item.critique || null;
+
+      const card = document.createElement('div');
+      card.className = 'note-card';
+      card.innerHTML = `
+        <div class="note-header">
+          <span class="note-index">#${idx + 1}</span>
+          <span class="note-topic">${esc(topic.title || '未命名选题')}</span>
+        </div>
+        <div class="note-body">
+          ${critique?.total_score ? `<span class="score">评分 ${esc(critique.total_score)}</span>` : ''}
+          <div class="field-label">标题</div>
+          <div class="field-val title">${esc(mcp.title)}</div>
+          <div class="field-label">正文</div>
+          <div class="field-val body">${esc(mcp.content)}</div>
+          <div class="field-label">标签</div>
+          <div class="tags">${(mcp.tags||[]).map(t=>`<span class="tag">#${esc(t)}</span>`).join('')}</div>
+          ${content.image_suggestion ? `
+            <div class="field-label">配图建议</div>
+            <div class="field-val">${esc(content.image_suggestion)}</div>
+          ` : ''}
+          ${images.length ? `
+            <div class="field-label">图片</div>
+            <div class="images-row">
+              ${images.map(p=>{
+                const f = p.split(/[/\\]/).pop();
+                return `<div>
+                  <img src="/images/${esc(f)}" onerror="this.style.display='none'" />
+                  <div class="path-text" title="${esc(p)}">${esc(f)}</div>
+                </div>`;
+              }).join('')}
+            </div>
+          ` : ''}
+          <div class="actions">
+            <button class="btn btn-primary" data-action="revise-one" data-idx="${idx}">修改这一篇</button>
+            <button class="btn btn-dark" data-action="confirm" data-idx="${idx}">确认使用</button>
+            <button class="btn btn-green" data-action="publish" data-idx="${idx}">进入发布</button>
+          </div>
+        </div>
+      `;
+      cardsEl.appendChild(card);
+    });
+
+    revisionEl.className = 'revision-panel';
+    revisionEl.innerHTML = `
+      <h2>修改意见</h2>
+      <textarea id="revisionText" placeholder="例如：第2篇标题再真实一点，正文更口语化，少一点广告感。"></textarea>
+      <div class="actions">
+        <button class="btn btn-primary" id="reviseBtn">提交修改</button>
+        <button class="btn btn-outline" id="abandonBtn">放弃当前草稿</button>
+      </div>
+    `;
+
+    async function sendAgentMessage(message, button){
+      if (!message.trim()) { toast('请先输入要执行的操作'); return null; }
+      button && (button.disabled = true);
+      const oldText = button ? button.textContent : '';
+      if (button) button.textContent = '处理中...';
+      try {
+        const resp = await fetch('/agent/run', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({
+            user_id: 'anonymous',
+            session_id: getSessionId(),
+            task_id: agentResult.task_id,
+            user_message: message
+          })
+        });
+        if (!resp.ok) throw new Error((await resp.json()).detail || `HTTP ${resp.status}`);
+        return await resp.json();
+      } catch (err) {
+        toast('请求失败：' + err.message, 3600);
+        return null;
+      } finally {
+        if (button) {
+          button.disabled = false;
+          button.textContent = oldText;
+        }
+      }
+    }
+
+    function refreshWithAgentResult(result){
+      if (!result) return;
+      localStorage.setItem('xhs_generate_result', JSON.stringify({
+        agent_result: result,
+        prepared_results: preparedFromAgent(result),
+        image_count: data.image_count,
+        is_original: data.is_original,
+        visibility: data.visibility
+      }));
+      window.location.reload();
+    }
+
+    cardsEl.addEventListener('click', async (e) => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      const idx = parseInt(btn.dataset.idx, 10);
+      const item = preparedResults[idx];
+      const action = btn.dataset.action;
+
+      if (action === 'revise-one') {
+        document.getElementById('revisionText').value = `第${idx + 1}篇 `;
+        document.getElementById('revisionText').focus();
+        return;
+      }
+
+      if (action === 'confirm') {
+        const result = await sendAgentMessage(`第${idx + 1}篇可以，就用这个`, btn);
+        if (result) toast(result.needs_clarification ? result.clarification_question : '已确认当前草稿');
+        return;
+      }
+
+      if (action === 'publish') {
+        localStorage.setItem('xhs_publish_item', JSON.stringify({
+          ...item,
+          candidate: candidatePayload(item, idx),
+          agent_result: agentResult
+        }));
+        window.location.href = '/static/publish.html';
+      }
+    });
+
+    document.getElementById('reviseBtn').addEventListener('click', async function(){
+      const text = document.getElementById('revisionText').value.trim();
+      const result = await sendAgentMessage(text, this);
+      refreshWithAgentResult(result);
+    });
+
+    document.getElementById('abandonBtn').addEventListener('click', async function(){
+      const result = await sendAgentMessage('算了，放弃当前任务', this);
+      if (result) {
+        localStorage.removeItem('xhs_generate_result');
+        toast('已放弃当前草稿');
+        setTimeout(()=>{ window.location.href = '/static/generate.html'; }, 600);
+      }
+    });
+  }
+</script>
+</body>
+</html>

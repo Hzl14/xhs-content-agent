@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>可选素材采集 - 小红书内容 Agent</title>
+  <link rel="stylesheet" href="/static/common.css" />
+</head>
+<body>
+<div class="container">
+
+  <div class="topbar">
+    <div>
+      <h1>可选素材采集</h1>
+      <p style="font-size:13px;color:var(--text-secondary);margin-top:2px;">
+        这里只是为内容 Agent 准备参考素材，不是主工作台。要多轮对话生成和修改文案，请回到对话工作台。
+      </p>
+    </div>
+    <a class="back-link" href="/static/generate.html">← 返回对话工作台</a>
+  </div>
+
+  <div class="card" style="border-color:#fecdd3;background:#fff1f3;">
+    <div style="font-size:15px;font-weight:700;margin-bottom:6px;">项目主入口不是采集表单</div>
+    <div style="font-size:13px;color:#9f1239;line-height:1.7;">
+      小红书 Agent 的主流程是：对话理解需求 → 必要时获取素材 → 分析选题 → 生成文案 → 审核 → 等待确认发布。
+      如果你只是想测试多轮对话，请直接进入
+      <a href="/static/generate.html" style="color:#be123c;font-weight:700;">对话工作台</a>。
+    </div>
+  </div>
+
+  <form id="crawlForm">
+
+    <div class="card">
+      <label>搜索关键词（每行一个，直接用于小红书搜索）</label>
+      <textarea id="keywords" placeholder="招聘主播&#10;带货主播招聘&#10;直播运营招聘" required></textarea>
+    </div>
+
+    <div class="card">
+      <label>话题词过滤（笔记正文/标题需含其中至少一词，每行一个，留空则不过滤）</label>
+      <textarea id="topicWords" placeholder="带货主播&#10;招聘&#10;直播&#10;运营" style="min-height:60px;"></textarea>
+    </div>
+
+    <div class="card">
+      <label>互动数筛选（三项均需满足，填 0 不限制）</label>
+      <div class="row3">
+        <div>
+          <span style="font-size:12px;color:var(--text-muted);">最少评论</span>
+          <input type="number" id="minComments" value="5" min="0" />
+        </div>
+        <div>
+          <span style="font-size:12px;color:var(--text-muted);">最少点赞</span>
+          <input type="number" id="minLikes" value="0" min="0" />
+        </div>
+        <div>
+          <span style="font-size:12px;color:var(--text-muted);">最少收藏</span>
+          <input type="number" id="minFavorites" value="0" min="0" />
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span style="font-size:13px;color:var(--text-secondary);white-space:nowrap;">采集目标</span>
+        <input type="number" id="targetCount" value="20" min="1" max="200" style="width:100px;text-align:center;" />
+        <span style="font-size:13px;color:var(--text-secondary);">条笔记</span>
+      </div>
+      <p class="hint">仅图文、1 年内发布、过滤广告内容。采集结果会作为对话工作台的可选素材来源。</p>
+    </div>
+
+    <button type="submit" class="btn btn-primary btn-lg btn-block" id="submitBtn">开始采集素材</button>
+  </form>
+
+  <div class="status-bar" id="status"></div>
+
+</div>
+
+<script>
+  var form = document.getElementById('crawlForm');
+  var statusEl = document.getElementById('status');
+  var submitBtn = document.getElementById('submitBtn');
+
+  function parseLines(text) {
+    return text.split('\n').map(function(s){return s.trim()}).filter(Boolean);
+  }
+
+  function setStatus(type, msg) {
+    statusEl.className = 'status-bar show ' + type;
+    statusEl.textContent = msg;
+  }
+
+  form.addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    var keywords = parseLines(document.getElementById('keywords').value);
+    var topicWords = parseLines(document.getElementById('topicWords').value);
+    var minComments = parseInt(document.getElementById('minComments').value, 10) || 0;
+    var minLikes = parseInt(document.getElementById('minLikes').value, 10) || 0;
+    var minFavorites = parseInt(document.getElementById('minFavorites').value, 10) || 0;
+    var targetCount = parseInt(document.getElementById('targetCount').value, 10) || 20;
+
+    if (!keywords.length) {
+      alert('请填写至少一个关键词');
+      return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = '采集中...';
+    setStatus('info', '浏览器即将自动采集素材。采集过程完成后，会把素材保存到本地并返回结果页。');
+
+    try {
+      var resp = await fetch('/local-crawl/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          keywords: keywords,
+          topic_words: topicWords,
+          min_comments: minComments,
+          min_likes: minLikes,
+          min_favorites: minFavorites,
+          target_count: targetCount
+        })
+      });
+
+      if (!resp.ok) {
+        var err = await resp.json().catch(function(){ return {detail: resp.statusText}; });
+        throw new Error(err.detail || 'HTTP ' + resp.status);
+      }
+
+      var data = await resp.json();
+      localStorage.setItem('xhs_crawl_result', JSON.stringify(data));
+      setStatus('success', '素材采集完成，共 ' + data.count + ' 条，正在跳转...');
+      setTimeout(function() { window.location.href = '/static/crawl_results.html'; }, 800);
+
+    } catch(err) {
+      setStatus('error', '素材采集失败：' + err.message);
+      submitBtn.disabled = false;
+      submitBtn.textContent = '开始采集素材';
+    }
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>确认发布 · 小红书助手</title>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;background:#f5f5f7;color:#1d1d1f;padding:40px 20px;min-height:100vh}
+    .container{max-width:700px;margin:0 auto}
+    .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:26px}
+    h1{font-size:22px;font-weight:700;color:#ff2442}
+    .back{font-size:13px;color:#666;text-decoration:none}.back:hover{color:#ff2442}
+    .card{background:#fff;border-radius:12px;padding:20px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+    .card h2{font-size:15px;margin-bottom:12px}
+    .label{font-size:12px;color:#777;margin-bottom:5px}
+    .title{font-size:18px;font-weight:700;line-height:1.5;margin-bottom:12px}
+    .body{white-space:pre-wrap;background:#fafafa;border:1px solid #eee;border-radius:8px;padding:12px;line-height:1.7;font-size:14px;margin-bottom:12px}
+    .tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+    .tag{background:#fff0f3;color:#ff2442;border-radius:6px;padding:3px 8px;font-size:12px}
+    .hint{font-size:13px;color:#666;line-height:1.7;background:#f0f7ff;border-radius:8px;padding:10px 12px}
+    .btn-row{display:flex;gap:10px;flex-wrap:wrap}
+    .btn{flex:1;min-width:140px;padding:13px;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;text-align:center;text-decoration:none}
+    .btn:hover{opacity:.86}.btn:disabled{opacity:.45;cursor:not-allowed}
+    .btn-primary{background:#ff2442;color:#fff}
+    .btn-outline{background:#fff;color:#1d1d1f;border:1.5px solid #ddd}
+    .empty{text-align:center;padding:60px 20px;color:#777;font-size:15px;background:#fff;border-radius:12px}
+    #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1d1d1f;color:#fff;padding:10px 22px;border-radius:10px;font-size:14px;display:none;z-index:999}
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="topbar">
+    <h1>确认发布</h1>
+    <a class="back" href="/static/generate_results.html">返回草稿</a>
+  </div>
+  <div id="main"></div>
+</div>
+<div id="toast"></div>
+
+<script>
+  function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+  function toast(msg,ms=2800){const t=document.getElementById('toast');t.textContent=msg;t.style.display='block';setTimeout(()=>t.style.display='none',ms)}
+  function getSessionId(){return localStorage.getItem('xhs_session_id') || 'default'}
+  function contentText(content){return [content.body, content.cta].filter(Boolean).join('\n\n')}
+
+  const raw = localStorage.getItem('xhs_publish_item');
+  const main = document.getElementById('main');
+
+  if (!raw) {
+    main.innerHTML = '<div class="empty">没有找到待发布草稿，请返回草稿页选择一篇。</div>';
+  } else {
+    const item = JSON.parse(raw);
+    const content = item.content || {};
+    const agentResult = item.agent_result || {};
+    const index = item.candidate?.index || 1;
+
+    main.innerHTML = `
+      <div class="card">
+        <h2>发布前预览</h2>
+        <div class="label">标题</div>
+        <div class="title">${esc(content.title)}</div>
+        <div class="label">正文</div>
+        <div class="body">${esc(contentText(content))}</div>
+        <div class="label">标签</div>
+        <div class="tags">${(content.hashtags||[]).map(t=>`<span class="tag">#${esc(t)}</span>`).join('')}</div>
+        ${content.image_suggestion ? `<div class="label">配图建议</div><div class="hint">${esc(content.image_suggestion)}</div>` : ''}
+      </div>
+      <div class="card">
+        <h2>发布确认</h2>
+        <p class="hint">发布会通过后端 PublisherAgent 执行。当前项目的 PublisherAgent 还是模拟发布，用来验证确认发布流程。</p>
+      </div>
+      <div class="btn-row">
+        <a class="btn btn-outline" href="/static/generate_results.html">继续修改</a>
+        <button class="btn btn-primary" id="publishBtn">确认发布第${index}篇</button>
+      </div>
+    `;
+
+    document.getElementById('publishBtn').addEventListener('click', async function(){
+      this.disabled = true;
+      const oldText = this.textContent;
+      this.textContent = '发布中...';
+      try {
+        const resp = await fetch('/agent/run', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({
+            user_id: 'anonymous',
+            session_id: getSessionId(),
+            task_id: agentResult.task_id,
+            user_message: `发布第${index}篇`
+          })
+        });
+        if (!resp.ok) throw new Error((await resp.json()).detail || `HTTP ${resp.status}`);
+        const result = await resp.json();
+        if (result.failed) {
+          throw new Error(result.error_message || '发布失败');
+        }
+        const publishId = result.publish_record && result.publish_record.publish_id;
+        toast(publishId ? `模拟发布成功：${publishId}` : '模拟发布成功');
+        this.textContent = publishId ? '模拟发布完成' : '已发布';
+        localStorage.removeItem('xhs_publish_item');
+      } catch(e) {
+        toast('发布失败：' + e.message, 3600);
+        this.disabled = false;
+        this.textContent = oldText;
+      }
+    });
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+python-dotenv
+jieba
+langchain
+langchain-openai
+openai
+langchain-core
+crawl4ai
+playwright
+requests
+httpx
+mcp

@@ -1,0 +1,1245 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI 内容工作台</title>
+  <link rel="stylesheet" href="/static/common.css" />
+  <style>
+    :root {
+      --surface: #ffffff;
+      --panel: #f7f8fa;
+      --line: #e8e8ec;
+      --line-soft: #f1f1f4;
+      --ink: #17181a;
+      --ink-soft: #5f6368;
+      --ink-muted: #9aa0a6;
+      --red: #ff2442;
+      --red-dark: #e51f3b;
+      --green: #16a34a;
+      --blue: #2563eb;
+      --amber: #d97706;
+      --shadow: 0 10px 32px rgba(17, 24, 39, .06);
+    }
+
+    body {
+      padding: 0;
+      background: #f6f7f9;
+      color: var(--ink);
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: 240px minmax(0, 1fr) 320px;
+      min-height: 100vh;
+    }
+
+    .sidebar,
+    .task-panel {
+      background: var(--surface);
+      border-color: var(--line);
+    }
+
+    .sidebar {
+      border-right: 1px solid var(--line);
+      padding: 20px 16px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow: auto;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .brand-title {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+    .new-chat {
+      border: 1px solid var(--line);
+      background: var(--surface);
+      color: var(--ink);
+      border-radius: 8px;
+      padding: 7px 10px;
+      cursor: pointer;
+      font: inherit;
+      font-size: 12px;
+      transition: background .18s, border-color .18s;
+    }
+
+    .new-chat:hover {
+      background: var(--panel);
+      border-color: #d9dbe1;
+    }
+
+    .login-refresh {
+      width: 100%;
+      border: 1px solid #ffd0d8;
+      background: #fff5f7;
+      color: var(--red);
+      border-radius: 8px;
+      padding: 8px 10px;
+      cursor: pointer;
+      font: inherit;
+      font-size: 12px;
+      margin-bottom: 12px;
+      transition: background .18s, border-color .18s;
+    }
+
+    .login-refresh:hover {
+      background: #ffecef;
+      border-color: #ff9aac;
+    }
+
+    .login-refresh:disabled {
+      cursor: not-allowed;
+      opacity: .65;
+    }
+
+    .session-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      background: var(--panel);
+      margin-bottom: 16px;
+    }
+
+    .session-label {
+      font-size: 12px;
+      color: var(--ink-muted);
+      margin-bottom: 4px;
+    }
+
+    .session-id {
+      font-size: 12px;
+      color: var(--ink-soft);
+      word-break: break-all;
+      line-height: 1.5;
+    }
+
+    .quick-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--ink-soft);
+      margin: 20px 0 10px;
+    }
+
+    .quick-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .quick-btn {
+      width: 100%;
+      text-align: left;
+      border: 1px solid var(--line);
+      background: var(--surface);
+      color: var(--ink-soft);
+      border-radius: 8px;
+      padding: 9px 10px;
+      cursor: pointer;
+      font: inherit;
+      font-size: 12px;
+      line-height: 1.45;
+      transition: background .18s, color .18s, border-color .18s;
+    }
+
+    .quick-btn:hover {
+      color: var(--ink);
+      background: var(--panel);
+      border-color: #d9dbe1;
+    }
+
+    .main {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      height: 100vh;
+    }
+
+    .topbar-chat {
+      flex: 0 0 auto;
+      padding: 20px 28px 14px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(246, 247, 249, .92);
+      backdrop-filter: blur(10px);
+    }
+
+    .topbar-chat h1 {
+      font-size: 20px;
+      margin: 0 0 4px;
+      letter-spacing: 0;
+    }
+
+    .topbar-chat p {
+      margin: 0;
+      color: var(--ink-soft);
+      font-size: 13px;
+    }
+
+    .chat-scroll {
+      flex: 1 1 auto;
+      overflow: auto;
+      padding: 24px 28px 130px;
+    }
+
+    .empty-state {
+      max-width: 760px;
+      margin: 36px auto;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 26px;
+      box-shadow: var(--shadow);
+    }
+
+    .empty-state h2 {
+      font-size: 18px;
+      margin-bottom: 8px;
+    }
+
+    .empty-state p {
+      color: var(--ink-soft);
+      margin-bottom: 16px;
+    }
+
+    .capability-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .capability {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      background: #fbfbfc;
+    }
+
+    .capability strong {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+
+    .capability span {
+      display: block;
+      color: var(--ink-soft);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .message {
+      max-width: 860px;
+      margin: 0 auto 18px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .message.user {
+      justify-items: end;
+    }
+
+    .bubble {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 14px 16px;
+      background: var(--surface);
+      box-shadow: 0 1px 0 rgba(17, 24, 39, .02);
+      max-width: 100%;
+    }
+
+    .message.user .bubble {
+      background: #1f2937;
+      color: #fff;
+      border-color: #1f2937;
+      max-width: 680px;
+    }
+
+    .message-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--ink-muted);
+      margin-bottom: 8px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      height: 24px;
+      padding: 0 9px;
+      border-radius: 999px;
+      background: #f2f3f5;
+      color: var(--ink-soft);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .pill.red {
+      color: var(--red);
+      background: #fff0f3;
+    }
+
+    .pill.green {
+      color: var(--green);
+      background: #effaf2;
+    }
+
+    .pill.blue {
+      color: var(--blue);
+      background: #eff6ff;
+    }
+
+    .assistant-text {
+      color: var(--ink);
+      line-height: 1.75;
+      white-space: pre-wrap;
+    }
+
+    .progress-list {
+      display: grid;
+      gap: 9px;
+      margin-top: 6px;
+    }
+
+    .progress-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--ink-soft);
+      font-size: 13px;
+    }
+
+    .progress-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #d4d7dd;
+      flex: 0 0 auto;
+    }
+
+    .progress-row.done .progress-dot {
+      background: var(--green);
+    }
+
+    .progress-row.active .progress-dot {
+      background: var(--red);
+      box-shadow: 0 0 0 4px rgba(255, 36, 66, .12);
+    }
+
+    .source-summary,
+    .draft-summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--line-soft);
+    }
+
+    .source-summary h3,
+    .draft-summary h3 {
+      margin: 0;
+      font-size: 16px;
+    }
+
+    .source-list,
+    .draft-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .source-item,
+    .draft-item {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      background: #fff;
+    }
+
+    .source-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      align-items: flex-start;
+      margin-bottom: 8px;
+    }
+
+    .source-index {
+      color: var(--red);
+      font-weight: 700;
+      font-size: 12px;
+      margin-bottom: 4px;
+    }
+
+    .source-title,
+    .draft-title {
+      font-size: 15px;
+      font-weight: 700;
+      line-height: 1.45;
+      margin-bottom: 8px;
+    }
+
+    .source-stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      color: var(--ink-muted);
+      font-size: 12px;
+      margin-bottom: 10px;
+    }
+
+    .source-content,
+    .draft-body {
+      color: var(--ink-soft);
+      line-height: 1.75;
+      white-space: pre-wrap;
+      font-size: 13px;
+    }
+
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 10px;
+    }
+
+    .tag-chip {
+      border-radius: 999px;
+      background: #f2f3f5;
+      color: var(--ink-muted);
+      font-size: 12px;
+      padding: 3px 9px;
+    }
+
+    .source-actions,
+    .draft-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .mini-btn {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink-soft);
+      border-radius: 7px;
+      padding: 6px 10px;
+      font: inherit;
+      font-size: 12px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background .18s, color .18s, border-color .18s;
+    }
+
+    .mini-btn:hover {
+      color: var(--ink);
+      background: var(--panel);
+      border-color: #d9dbe1;
+      text-decoration: none;
+    }
+
+    .composer {
+      position: fixed;
+      left: 240px;
+      right: 320px;
+      bottom: 0;
+      padding: 16px 28px 22px;
+      background: linear-gradient(to top, #f6f7f9 78%, rgba(246, 247, 249, 0));
+    }
+
+    .composer-inner {
+      max-width: 860px;
+      margin: 0 auto;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      box-shadow: var(--shadow);
+      padding: 12px;
+    }
+
+    .composer textarea {
+      min-height: 58px;
+      max-height: 180px;
+      padding: 4px 4px 10px;
+      border: none;
+      box-shadow: none;
+      background: transparent;
+      resize: vertical;
+    }
+
+    .composer textarea:focus {
+      box-shadow: none;
+      background: transparent;
+      border: none;
+    }
+
+    .composer-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding-top: 10px;
+      border-top: 1px solid var(--line-soft);
+    }
+
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--ink-muted);
+      font-size: 12px;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--green);
+    }
+
+    .send-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 96px;
+      height: 38px;
+      padding: 0 18px;
+      border: none;
+      border-radius: 999px;
+      background: var(--red);
+      color: #fff;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 700;
+      transition: background .18s, transform .18s, opacity .18s;
+      white-space: nowrap;
+    }
+
+    .send-btn:hover:not(:disabled) {
+      background: var(--red-dark);
+      transform: translateY(-1px);
+    }
+
+    .send-btn:disabled {
+      opacity: .55;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .task-panel {
+      border-left: 1px solid var(--line);
+      padding: 20px 16px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow: auto;
+    }
+
+    .panel-title {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+
+    .task-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      background: var(--panel);
+      margin-bottom: 12px;
+    }
+
+    .task-kv {
+      display: grid;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--ink-soft);
+    }
+
+    .task-kv div {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 1px solid #eceef2;
+      padding-bottom: 7px;
+    }
+
+    .task-kv div:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    .task-kv strong {
+      color: var(--ink);
+      font-weight: 600;
+      text-align: right;
+    }
+
+    .hint-box {
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      color: #9a3412;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 12px;
+      line-height: 1.65;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    @media (max-width: 1080px) {
+      .workspace {
+        grid-template-columns: 220px minmax(0, 1fr);
+      }
+
+      .task-panel {
+        display: none;
+      }
+
+      .composer {
+        right: 0;
+        left: 220px;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .workspace {
+        display: block;
+      }
+
+      .sidebar {
+        position: static;
+        height: auto;
+        border-right: none;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .quick-list,
+      .session-card {
+        display: none;
+      }
+
+      .main {
+        height: auto;
+        min-height: calc(100vh - 76px);
+      }
+
+      .topbar-chat {
+        padding: 16px;
+      }
+
+      .chat-scroll {
+        padding: 18px 14px 150px;
+      }
+
+      .capability-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .composer {
+        left: 0;
+        right: 0;
+        padding: 12px 12px 16px;
+      }
+
+      .composer-row {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .send-btn {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="workspace">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-title">XHS Agent</div>
+        <button class="new-chat" id="newChatBtn" type="button">新会话</button>
+      </div>
+      <button class="login-refresh" id="loginRefreshBtn" type="button">刷新小红书登录</button>
+      <div class="session-card">
+        <div class="session-label">当前会话</div>
+        <div class="session-id" id="sessionIdText"></div>
+      </div>
+      <div class="quick-title">快速开始</div>
+      <div class="quick-list">
+        <button class="quick-btn" type="button">给我整理10个底层翻身的成功人士的帖子</button>
+        <button class="quick-btn" type="button">分析一下大学生求职经验类热帖趋势</button>
+        <button class="quick-btn" type="button">写一篇求职经验分享，目标是大学生</button>
+        <button class="quick-btn" type="button">基于刚才第3篇素材写一篇文案</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar-chat">
+        <h1>AI 内容工作台</h1>
+        <p>找素材、拆热帖、生成文案，都在同一个会话里连续完成。</p>
+      </header>
+
+      <section class="chat-scroll" id="chatScroll">
+        <div class="empty-state" id="emptyState">
+          <h2>先说你要完成什么</h2>
+          <p>比如整理 10 篇相关热帖、分析趋势、提炼选题，或者直接生成小红书文案。</p>
+          <div class="capability-grid">
+            <div class="capability">
+              <strong>素材整理</strong>
+              <span>返回高质量帖子、互动数据、标签和原帖链接。</span>
+            </div>
+            <div class="capability">
+              <strong>趋势分析</strong>
+              <span>从热帖里提炼关键词、标题模式和内容结构。</span>
+            </div>
+            <div class="capability">
+              <strong>文案生成</strong>
+              <span>基于素材和策略生成草稿，并给出质量评估。</span>
+            </div>
+          </div>
+        </div>
+        <div id="messageList"></div>
+      </section>
+
+      <form class="composer" id="chatForm">
+        <div class="composer-inner">
+          <textarea id="userInput" placeholder="输入任务或追问，例如：给我整理10个底层翻身的成功人士的帖子"></textarea>
+          <div class="composer-row">
+            <div class="status"><span class="status-dot"></span><span>DeepSeek 在线</span></div>
+            <button class="send-btn" id="sendBtn" type="submit">发送</button>
+          </div>
+        </div>
+      </form>
+    </main>
+
+    <aside class="task-panel">
+      <div class="panel-title">当前任务</div>
+      <div class="task-card">
+        <div class="task-kv" id="taskSummary">
+          <div><span>类型</span><strong>暂无</strong></div>
+          <div><span>素材</span><strong>0 篇</strong></div>
+          <div><span>草稿</span><strong>0 篇</strong></div>
+          <div><span>状态</span><strong>等待输入</strong></div>
+        </div>
+      </div>
+      <div class="hint-box">
+        返回素材后可以继续说：“按收藏量排序”“提炼第3篇结构”“基于第5篇写一篇文案”。
+      </div>
+    </aside>
+  </div>
+
+  <script>
+    const SESSION_KEY = 'xhs_agent_session_id';
+    const MESSAGES_KEY = 'xhs_agent_messages';
+    const TASK_KEY = 'xhs_agent_task';
+
+    let messages = loadJson(MESSAGES_KEY, []);
+    let taskState = loadJson(TASK_KEY, null);
+    let sessionId = localStorage.getItem(SESSION_KEY) || createSessionId();
+    let isRunning = false;
+
+    const chatScroll = document.getElementById('chatScroll');
+    const messageList = document.getElementById('messageList');
+    const emptyState = document.getElementById('emptyState');
+    const userInput = document.getElementById('userInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const loginRefreshBtn = document.getElementById('loginRefreshBtn');
+    const taskSummary = document.getElementById('taskSummary');
+    const sessionIdText = document.getElementById('sessionIdText');
+
+    const progressByType = {
+      source_collection: ['理解需求', '搜索采集小红书热帖', '筛选高质量帖子', '整理素材列表'],
+      topic_research: ['理解需求', '搜索采集小红书热帖', '分析趋势与关键词', '生成选题方向'],
+      copywriting: ['理解需求', '搜索采集小红书热帖', '分析趋势与关键词', '生成选题方向', '撰写完整文案', '质量评审与优化'],
+      unknown: ['理解需求', '执行任务', '整理结果']
+    };
+
+    function createSessionId() {
+      const id = crypto.randomUUID ? crypto.randomUUID() : `session-${Date.now()}`;
+      localStorage.setItem(SESSION_KEY, id);
+      return id;
+    }
+
+    function loadJson(key, fallback) {
+      try {
+        const raw = localStorage.getItem(key);
+        return raw ? JSON.parse(raw) : fallback;
+      } catch (_) {
+        return fallback;
+      }
+    }
+
+    function saveState() {
+      localStorage.setItem(MESSAGES_KEY, JSON.stringify(messages));
+      localStorage.setItem(TASK_KEY, JSON.stringify(taskState));
+    }
+
+    function escapeHtml(value) {
+      const div = document.createElement('div');
+      div.textContent = value == null ? '' : String(value);
+      return div.innerHTML;
+    }
+
+    function compactText(value, max = 320) {
+      const text = (value || '').trim();
+      return text.length > max ? `${text.slice(0, max)}...` : text;
+    }
+
+    function inferTaskTypeFromResponse(data) {
+      if ((data.source_notes || []).length && !(data.results || []).length) return 'source_collection';
+      if ((data.results || []).length) return 'copywriting';
+      if ((data.top_keywords || []).length || data.analysis_summary) return 'topic_research';
+      return 'unknown';
+    }
+
+    function taskTypeLabel(type) {
+      return {
+        source_collection: '素材整理',
+        topic_research: '选题研究',
+        copywriting: '文案生成',
+        unknown: '任务'
+      }[type] || type;
+    }
+
+    async function refreshXhsLogin() {
+      if (!loginRefreshBtn || loginRefreshBtn.disabled) return;
+      loginRefreshBtn.disabled = true;
+      loginRefreshBtn.textContent = '等待扫码登录...';
+      appendMessage({
+        role: 'assistant',
+        type: 'text',
+        taskType: 'source_collection',
+        content: '已打开小红书登录窗口，请在 3 分钟内完成扫码或验证码登录。登录完成后我会保存状态，再重新爬取。'
+      });
+      try {
+        const resp = await fetch('/xhs-service/login', { method: 'POST' });
+        const data = await resp.json().catch(() => ({}));
+        appendMessage({
+          role: 'assistant',
+          type: 'text',
+          taskType: 'source_collection',
+          content: data.message || (data.success ? '小红书登录态已刷新。' : '小红书登录态刷新失败。')
+        });
+        pollXhsLoginStatus();
+      } catch (error) {
+        appendMessage({
+          role: 'assistant',
+          type: 'text',
+          taskType: 'source_collection',
+          content: `小红书登录态刷新失败：${error.message || error}`
+        });
+      } finally {
+        loginRefreshBtn.disabled = false;
+        loginRefreshBtn.textContent = '刷新小红书登录';
+      }
+    }
+
+    async function pollXhsLoginStatus() {
+      const startedAt = Date.now();
+      const timer = window.setInterval(async () => {
+        if (Date.now() - startedAt > 190000) {
+          window.clearInterval(timer);
+          return;
+        }
+        try {
+          const resp = await fetch('/xhs-service/status');
+          const data = await resp.json();
+          const loginTask = data.login_task || {};
+          if (loginTask.state === 'saved') {
+            window.clearInterval(timer);
+            appendMessage({
+              role: 'assistant',
+              type: 'text',
+              taskType: 'source_collection',
+              content: '小红书登录态已保存，可以重新发送爬取任务了。'
+            });
+          } else if (loginTask.state === 'failed' || loginTask.state === 'timeout') {
+            window.clearInterval(timer);
+            appendMessage({
+              role: 'assistant',
+              type: 'text',
+              taskType: 'source_collection',
+              content: loginTask.message || '小红书登录态刷新失败，请重试。'
+            });
+          }
+        } catch (_) {
+          window.clearInterval(timer);
+        }
+      }, 3000);
+    }
+
+    function appendMessage(message) {
+      messages.push({ id: `msg-${Date.now()}-${Math.random()}`, createdAt: Date.now(), ...message });
+      saveState();
+      render();
+    }
+
+    function updateMessage(id, patch) {
+      messages = messages.map((message) => message.id === id ? { ...message, ...patch } : message);
+      saveState();
+      render();
+    }
+
+    function render() {
+      sessionIdText.textContent = sessionId;
+      emptyState.classList.toggle('hidden', messages.length > 0);
+      messageList.innerHTML = messages.map(renderMessage).join('');
+      renderTaskSummary();
+      bindInlineActions();
+      requestAnimationFrame(() => {
+        chatScroll.scrollTop = chatScroll.scrollHeight;
+      });
+    }
+
+    function renderMessage(message) {
+      if (message.role === 'user') {
+        return `
+          <article class="message user">
+            <div class="bubble">${escapeHtml(message.content)}</div>
+          </article>
+        `;
+      }
+
+      const label = message.taskType ? taskTypeLabel(message.taskType) : 'AI';
+      let body = '';
+      if (message.type === 'progress') body = renderProgress(message);
+      else if (message.type === 'source_notes') body = renderSourceNotes(message);
+      else if (message.type === 'drafts') body = renderDrafts(message);
+      else body = `<div class="assistant-text">${escapeHtml(message.content || '')}</div>`;
+
+      return `
+        <article class="message assistant">
+          <div class="bubble">
+            <div class="message-meta">
+              <span class="pill red">${escapeHtml(label)}</span>
+              ${message.status ? `<span class="pill ${message.status === 'completed' ? 'green' : 'blue'}">${escapeHtml(message.statusText || message.status)}</span>` : ''}
+            </div>
+            ${body}
+          </div>
+        </article>
+      `;
+    }
+
+    function renderProgress(message) {
+      const steps = progressByType[message.taskType || 'unknown'] || progressByType.unknown;
+      const done = Number(message.done || 0);
+      const rows = steps.map((step, index) => {
+        const cls = index < done ? 'done' : (index === done ? 'active' : '');
+        return `<div class="progress-row ${cls}"><span class="progress-dot"></span><span>${escapeHtml(step)}</span></div>`;
+      }).join('');
+      return `
+        <div class="assistant-text">${escapeHtml(message.content || '正在处理任务...')}</div>
+        <div class="progress-list">${rows}</div>
+      `;
+    }
+
+    function renderSourceNotes(message) {
+      const notes = message.sourceNotes || [];
+      const keywords = message.topKeywords || [];
+      const summary = message.analysisSummary || '';
+      const list = notes.map((note, index) => {
+        const tags = (note.tags || []).slice(0, 8).map((tag) => `<span class="tag-chip">#${escapeHtml(tag)}</span>`).join('');
+        const url = note.url ? `<a class="mini-btn" href="${escapeHtml(note.url)}" target="_blank" rel="noreferrer">查看原帖</a>` : '';
+        return `
+          <section class="source-item">
+            <div class="source-head">
+              <div>
+                <div class="source-index">素材 ${index + 1}</div>
+                <div class="source-title">${escapeHtml(note.title || '未命名帖子')}</div>
+              </div>
+              <span class="pill">${escapeHtml(note.keyword_used || note.keyword_type || '来源')}</span>
+            </div>
+            <div class="source-stats">
+              <span>赞 ${Number(note.likes || 0)}</span>
+              <span>藏 ${Number(note.favorites || 0)}</span>
+              <span>评 ${Number(note.comments || 0)}</span>
+              ${note.author ? `<span>${escapeHtml(note.author)}</span>` : ''}
+              ${note.publish_time ? `<span>${escapeHtml(note.publish_time)}</span>` : ''}
+            </div>
+            ${note.content ? `<div class="source-content">${escapeHtml(compactText(note.content))}</div>` : ''}
+            ${tags ? `<div class="tags">${tags}</div>` : ''}
+            <div class="source-actions">
+              ${url}
+              <button class="mini-btn action-fill" type="button" data-prompt="提炼第${index + 1}篇素材的内容结构">提炼结构</button>
+              <button class="mini-btn action-fill" type="button" data-prompt="基于第${index + 1}篇素材写一篇小红书文案">基于它写</button>
+            </div>
+          </section>
+        `;
+      }).join('');
+
+      return `
+        <div class="source-summary">
+          <div>
+            <h3>已整理到 ${notes.length} 篇相关帖子</h3>
+            ${summary ? `<div class="source-content">${escapeHtml(summary)}</div>` : ''}
+          </div>
+          <span class="pill green">素材列表</span>
+        </div>
+        ${keywords.length ? `<div class="tags">${keywords.slice(0, 10).map((word) => `<span class="tag-chip">#${escapeHtml(word)}</span>`).join('')}</div>` : ''}
+        <div class="source-list">${list || '<div class="assistant-text">没有返回可展示的帖子。</div>'}</div>
+      `;
+    }
+
+    function renderDrafts(message) {
+      const results = message.results || [];
+      let count = 0;
+      const list = results.map((block) => {
+        const topic = block.topic || {};
+        const critique = block.critique || null;
+        return (block.contents || []).map((content) => {
+          count += 1;
+          const tags = (content.hashtags || []).slice(0, 10).map((tag) => `<span class="tag-chip">#${escapeHtml(tag)}</span>`).join('');
+          const score = critique ? Number(critique.total_score || 0) : null;
+          return `
+            <section class="draft-item">
+              <div class="source-index">草稿 ${count} · ${escapeHtml(topic.title || '选题')}</div>
+              <div class="draft-title">${escapeHtml(content.title || '')}</div>
+              <div class="draft-body">${escapeHtml(content.body || '')}</div>
+              ${tags ? `<div class="tags">${tags}</div>` : ''}
+              ${content.cta ? `<div class="source-content" style="margin-top:10px;">${escapeHtml(content.cta)}</div>` : ''}
+              <div class="draft-actions">
+                ${score !== null ? `<span class="pill ${score >= 75 ? 'green' : 'red'}">评分 ${score}</span>` : ''}
+                <button class="mini-btn action-fill" type="button" data-prompt="修改第${count}篇文案，让它更真实、更像小红书表达">继续修改</button>
+              </div>
+            </section>
+          `;
+        }).join('');
+      }).join('');
+
+      return `
+        <div class="draft-summary">
+          <h3>已生成 ${count} 篇文案草稿</h3>
+          <span class="pill blue">文案结果</span>
+        </div>
+        <div class="draft-list">${list || '<div class="assistant-text">没有返回草稿。</div>'}</div>
+      `;
+    }
+
+    function renderTaskSummary() {
+      const type = taskState?.taskType || '暂无';
+      const noteCount = taskState?.sourceNotes?.length || 0;
+      const draftCount = (taskState?.results || []).reduce((sum, block) => sum + ((block.contents || []).length), 0);
+      const status = isRunning ? '运行中' : (messages.length ? '已就绪' : '等待输入');
+      taskSummary.innerHTML = `
+        <div><span>类型</span><strong>${escapeHtml(type === '暂无' ? type : taskTypeLabel(type))}</strong></div>
+        <div><span>素材</span><strong>${noteCount} 篇</strong></div>
+        <div><span>草稿</span><strong>${draftCount} 篇</strong></div>
+        <div><span>状态</span><strong>${escapeHtml(status)}</strong></div>
+      `;
+    }
+
+    function bindInlineActions() {
+      document.querySelectorAll('.action-fill').forEach((button) => {
+        button.addEventListener('click', () => {
+          userInput.value = button.dataset.prompt || '';
+          userInput.focus();
+        });
+      });
+    }
+
+    function setRunning(next) {
+      isRunning = next;
+      sendBtn.disabled = next;
+      sendBtn.textContent = next ? '处理中' : '发送';
+      renderTaskSummary();
+    }
+
+    function guessTaskType(message) {
+      if (/(整理|收集|返回|找|搜索|爬取|给我).*(帖子|热帖|案例|素材|笔记)/.test(message)) return 'source_collection';
+      if (/\d{1,2}\s*(个|篇|条|则)?[^，。；\n]{0,24}?(帖子|热帖|案例|素材|笔记)/.test(message)) return 'source_collection';
+      if (/(分析|趋势|选题|方向)/.test(message) && !/(写一篇|生成文案|文案)/.test(message)) return 'topic_research';
+      if (/(写一篇|生成|文案|草稿|基于第\d+篇)/.test(message)) return 'copywriting';
+      return taskState?.taskType || 'unknown';
+    }
+
+    async function submitMessage(event) {
+      event.preventDefault();
+      const content = userInput.value.trim();
+      if (!content || isRunning) return;
+
+      appendMessage({ role: 'user', content });
+      userInput.value = '';
+
+      const taskType = guessTaskType(content);
+      const progressId = `progress-${Date.now()}`;
+      messages.push({
+        id: progressId,
+        role: 'assistant',
+        type: 'progress',
+        taskType,
+        status: 'running',
+        statusText: '运行中',
+        content: taskType === 'source_collection' ? '我会优先返回帖子素材，不生成文案。' : '我正在编排任务路线。',
+        done: 0,
+        createdAt: Date.now()
+      });
+      saveState();
+      render();
+      setRunning(true);
+
+      const timer = window.setInterval(() => {
+        const current = messages.find((message) => message.id === progressId);
+        if (!current || current.status !== 'running') {
+          window.clearInterval(timer);
+          return;
+        }
+        const total = (progressByType[current.taskType] || progressByType.unknown).length;
+        updateMessage(progressId, { done: Math.min((current.done || 0) + 1, total - 1) });
+      }, 1200);
+
+      try {
+        const response = await fetch('/agent/run', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user_id: 'anonymous',
+            session_id: sessionId,
+            user_message: content,
+            audience: '大学生女性',
+            tone: '真实分享',
+            topic_count: 2,
+            content_count_per_topic: 1,
+            min_final_note_count: 2,
+            raw_crawl_limit: 30,
+            final_note_limit: 10
+          })
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.detail || `请求失败 HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        const resolvedType = inferTaskTypeFromResponse(data);
+        const finalProgress = progressByType[resolvedType] || progressByType.unknown;
+        updateMessage(progressId, {
+          taskType: resolvedType,
+          status: data.failed ? 'failed' : 'completed',
+          statusText: data.failed ? '失败' : '完成',
+          content: data.failed ? (data.error_message || '任务执行失败') : '任务已完成，结果如下。',
+          done: finalProgress.length
+        });
+
+        if (data.needs_clarification) {
+          appendMessage({
+            role: 'assistant',
+            type: 'text',
+            taskType: 'unknown',
+            content: `${data.clarification_question || '还需要补充信息。'}${data.clarification_tips ? `\n${data.clarification_tips}` : ''}`
+          });
+        } else if (data.failed) {
+          appendMessage({
+            role: 'assistant',
+            type: 'text',
+            taskType: 'unknown',
+            content: data.error_message || '任务失败，请换一种说法重试。'
+          });
+        } else if ((data.source_notes || []).length && !(data.results || []).length) {
+          const resultMessage = {
+            role: 'assistant',
+            type: 'source_notes',
+            taskType: 'source_collection',
+            sourceNotes: data.source_notes || [],
+            analysisSummary: data.analysis_summary || '',
+            topKeywords: data.top_keywords || []
+          };
+          taskState = {
+            taskType: 'source_collection',
+            sourceNotes: resultMessage.sourceNotes,
+            analysisSummary: resultMessage.analysisSummary,
+            topKeywords: resultMessage.topKeywords,
+            results: []
+          };
+          appendMessage(resultMessage);
+        } else if ((data.results || []).length) {
+          const resultMessage = {
+            role: 'assistant',
+            type: 'drafts',
+            taskType: 'copywriting',
+            results: data.results || [],
+            sourceNotes: data.source_notes || [],
+            analysisSummary: data.analysis_summary || '',
+            topKeywords: data.top_keywords || []
+          };
+          taskState = {
+            taskType: 'copywriting',
+            sourceNotes: resultMessage.sourceNotes,
+            analysisSummary: resultMessage.analysisSummary,
+            topKeywords: resultMessage.topKeywords,
+            results: resultMessage.results
+          };
+          appendMessage(resultMessage);
+        } else {
+          appendMessage({
+            role: 'assistant',
+            type: 'text',
+            taskType: resolvedType,
+            content: '任务完成，但没有返回可展示的素材或文案。'
+          });
+        }
+      } catch (error) {
+        updateMessage(progressId, {
+          status: 'failed',
+          statusText: '失败',
+          content: error.message || '请求异常'
+        });
+        appendMessage({
+          role: 'assistant',
+          type: 'text',
+          taskType: 'unknown',
+          content: `请求异常：${error.message || error}`
+        });
+      } finally {
+        window.clearInterval(timer);
+        saveState();
+        setRunning(false);
+        render();
+      }
+    }
+
+    document.getElementById('chatForm').addEventListener('submit', submitMessage);
+    if (loginRefreshBtn) {
+      loginRefreshBtn.addEventListener('click', refreshXhsLogin);
+    }
+    document.getElementById('newChatBtn').addEventListener('click', () => {
+      messages = [];
+      taskState = null;
+      sessionId = createSessionId();
+      saveState();
+      render();
+      userInput.focus();
+    });
+    document.querySelectorAll('.quick-btn').forEach((button) => {
+      button.addEventListener('click', () => {
+        userInput.value = button.textContent.trim();
+        userInput.focus();
+      });
+    });
+
+    userInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+        document.getElementById('chatForm').requestSubmit();
+      }
+    });
+
+    render();
+  </script>
+</body>
+</html>
