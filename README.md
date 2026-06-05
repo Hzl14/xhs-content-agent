@@ -51,7 +51,6 @@ memory/      会话记忆与 pattern feedback
 static/      MVP 前端页面
 tests/       核心链路测试
 docs/        架构和演示说明
-legacy_app/  旧版本归档代码
 ```
 
 ## 关键设计

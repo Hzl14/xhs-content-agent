@@ -4,7 +4,7 @@ MCP server entry for the refactored XHS agent.
 Current scope:
 - run_content_pipeline: execute the new pipeline and return structured result
 
-This file is intentionally decoupled from legacy_app.
+This file is intentionally decoupled from crawler and publishing infrastructure.
 """
 
 from mcp.server.fastmcp import FastMCP

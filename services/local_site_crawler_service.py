@@ -12,7 +12,7 @@ from urllib.parse import quote
 
 from playwright.async_api import BrowserContext, Page, async_playwright
 
-from legacy_app.models.schemas import NoteItem, SearchCrawlRequest, SearchCrawlResponse
+from models.crawler_schemas import NoteItem, SearchCrawlRequest, SearchCrawlResponse
 from utils.text_encoding import repair_mojibake
 
 

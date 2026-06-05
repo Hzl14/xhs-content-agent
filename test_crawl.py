@@ -17,8 +17,8 @@ sys.path.insert(0, ".")
 
 
 async def main() -> None:
-    from legacy_app.models.schemas import SearchCrawlRequest
-    from legacy_app.services.local_site_crawler_service import crawl_local_site_notes
+    from models.crawler_schemas import SearchCrawlRequest
+    from services.local_site_crawler_service import crawl_local_site_notes
 
     keyword = "考研上岸经验贴"
     target = 25

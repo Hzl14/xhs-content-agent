@@ -7,8 +7,8 @@ from pathlib import Path
 
 from playwright.async_api import async_playwright
 
-from legacy_app.models.schemas import SearchCrawlRequest
-from legacy_app.services.local_site_crawler_service import (
+from models.crawler_schemas import SearchCrawlRequest
+from services.local_site_crawler_service import (
     DETAIL_PAGE_TIMEOUT_MS,
     NAV_TIMEOUT_MS,
     STATE_FILE,

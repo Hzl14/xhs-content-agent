@@ -8,7 +8,7 @@ from pathlib import Path
 from fastapi import APIRouter
 from playwright.async_api import async_playwright
 
-from legacy_app.services.local_site_crawler_service import NAV_TIMEOUT_MS, STATE_FILE, XHS_BASE
+from services.local_site_crawler_service import NAV_TIMEOUT_MS, STATE_FILE, XHS_BASE
 
 
 router = APIRouter(prefix="/xhs-service", tags=["XHS Service"])

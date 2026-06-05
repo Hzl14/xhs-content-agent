@@ -236,7 +236,7 @@ def test_stale_login_state_fails_fast_before_live_crawl(monkeypatch):
 
 
 def test_phase1_card_extractor_uses_fallback_selectors():
-    from legacy_app.services.local_site_crawler_service import _JS_EXTRACT_CARDS, _JS_GET_HREFS
+    from services.local_site_crawler_service import _JS_EXTRACT_CARDS, _JS_GET_HREFS
 
     assert 'a[href*="/explore/"]' in _JS_EXTRACT_CARDS
     assert "aria-label" in _JS_EXTRACT_CARDS
@@ -245,7 +245,7 @@ def test_phase1_card_extractor_uses_fallback_selectors():
 
 
 def test_two_keyword_summary_crawl_runs_in_parallel(monkeypatch):
-    from legacy_app.services import local_site_crawler_service
+    from services import local_site_crawler_service
 
     active = 0
     max_active = 0

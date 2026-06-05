@@ -257,8 +257,8 @@ class CrawlerAgent(BaseAgent):
         state.metadata["keyword_plan"] = keyword_plan
 
         try:
-            from legacy_app.models.schemas import SearchCrawlRequest
-            from legacy_app.services.local_site_crawler_service import crawl_local_site_notes
+            from models.crawler_schemas import SearchCrawlRequest
+            from services.local_site_crawler_service import crawl_local_site_notes
         except Exception as exc:
             state.metadata["crawler_error"] = f"crawler_import_failed: {exc}"
             span.end(status="failed", output_summary={"note_count": 0}, error=f"crawler_import_failed: {exc}")
@@ -565,8 +565,8 @@ class CrawlerAgent(BaseAgent):
             return notes
 
         try:
-            from legacy_app.models.schemas import NoteItem as LegacyNoteItem
-            from legacy_app.services.local_site_crawler_service import enrich_local_site_note_details
+            from models.crawler_schemas import NoteItem as LegacyNoteItem
+            from services.local_site_crawler_service import enrich_local_site_note_details
         except Exception as exc:
             state.metadata["detail_enrich_error"] = f"detail_import_failed: {exc}"
             return notes
